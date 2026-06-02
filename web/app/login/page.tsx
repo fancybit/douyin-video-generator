@@ -1,14 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export default function LoginPage() {
-  const router = useRouter()
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -35,7 +33,7 @@ export default function LoginPage() {
     } else {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password })
       if (err) { setError(err.message); setLoading(false) }
-      else { router.push('/') }
+      else { window.location.href = '/' }
     }
   }
 
