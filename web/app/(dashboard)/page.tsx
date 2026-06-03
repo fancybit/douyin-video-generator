@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import Link from 'next/link'
 
 interface Task {
   id: string
   title: string
+  script: string | null
   status: string
   progress: number
   error_message: string | null
@@ -17,10 +17,13 @@ interface Task {
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [title, setTitle] = useState('')
+  const [script, setScript] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
-  useEffect(() => { fetchTasks() }, [])
-
-  async function fetchTasks() {
+  const fetchTasks = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase
       .from('tasks')
@@ -29,6 +32,36 @@ export default function DashboardPage() {
       .limit(20)
     setTasks(data || [])
     setLoading(false)
+  }, [])
+
+  useEffect(() => { fetchTasks() }, [fetchTasks])
+
+  async function handleCreateTask(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) return
+    setSubmitting(true)
+    setSubmitError('')
+
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('tasks').insert({
+      title: title.trim(),
+      script: script.trim(),
+      status: 'pending',
+      progress: 0,
+      user_id: user?.id,
+    })
+
+    if (error) {
+      setSubmitError(error.message)
+      setSubmitting(false)
+      return
+    }
+
+    setShowModal(false)
+    setTitle('')
+    setScript('')
+    setSubmitting(false)
+    fetchTasks()
   }
 
   const statusLabel: Record<string, string> = {
@@ -49,12 +82,12 @@ export default function DashboardPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">任务面板</h2>
-        <Link
-          href="/"
+        <button
+          onClick={() => setShowModal(true)}
           className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
         >
           新建任务
-        </Link>
+        </button>
       </div>
 
       {/* 统计卡片 */}
@@ -81,17 +114,16 @@ export default function DashboardPage() {
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">状态</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">进度</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">创建时间</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">操作</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">加载中...</td>
+                <td colSpan={4} className="px-6 py-12 text-center text-gray-400 text-sm">加载中...</td>
               </tr>
             ) : tasks.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">
+                <td colSpan={4} className="px-6 py-12 text-center text-gray-400 text-sm">
                   暂无任务，点击「新建任务」开始生成
                 </td>
               </tr>
@@ -100,6 +132,9 @@ export default function DashboardPage() {
                 <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                    {task.script && (
+                      <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{task.script}</p>
+                    )}
                     {task.error_message && (
                       <p className="text-xs text-red-500 mt-0.5">{task.error_message}</p>
                     )}
@@ -127,29 +162,66 @@ export default function DashboardPage() {
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {new Date(task.created_at).toLocaleString('zh-CN')}
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    {task.video_url && (
-                      <a
-                        href={task.video_url}
-                        download
-                        className="text-sm text-blue-600 hover:text-blue-800 mr-3"
-                      >
-                        下载
-                      </a>
-                    )}
-                    <Link
-                      href={`/videos`}
-                      className="text-sm text-gray-400 hover:text-gray-600"
-                    >
-                      查看
-                    </Link>
-                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/* 新建任务弹窗 */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowModal(false)} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">新建任务</h3>
+            <form onSubmit={handleCreateTask} className="space-y-4">
+              <div>
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">任务标题 *</label>
+                <input
+                  id="title"
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="例如：AI 生成产品介绍视频"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="script" className="block text-sm font-medium text-gray-700 mb-1">视频脚本</label>
+                <textarea
+                  id="script"
+                  rows={4}
+                  value={script}
+                  onChange={(e) => setScript(e.target.value)}
+                  placeholder="描述你想生成的视频内容..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                />
+              </div>
+              {submitError && (
+                <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{submitError}</div>
+              )}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !title.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {submitting ? '创建中...' : '创建任务'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
