@@ -1,12 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+import { useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,7 +18,11 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     setSuccess('')
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
 
     if (isRegister) {
       const { error: err } = await supabase.auth.signUp({ email, password })
@@ -32,8 +35,9 @@ export default function LoginPage() {
       }
     } else {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password })
-      if (err) { setError(err.message); setLoading(false) }
-      else { window.location.href = '/' }
+      if (err) { setError(err.message); setLoading(false); return }
+      router.refresh()
+      router.push('/')
     }
   }
 
