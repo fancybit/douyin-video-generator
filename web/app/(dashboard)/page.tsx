@@ -36,6 +36,11 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchTasks() }, [fetchTasks])
 
+  // 任务创建后自动触发处理
+  async function triggerProcess() {
+    try { await fetch('/api/process-task', { method: 'POST' }) } catch {}
+  }
+
   async function handleCreateTask(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
@@ -62,7 +67,16 @@ export default function DashboardPage() {
     setScript('')
     setSubmitting(false)
     fetchTasks()
+    triggerProcess()
   }
+
+  // 有处理中或排队中任务时轮询状态
+  const hasActiveTasks = tasks.some((t) => ['pending', 'processing'].includes(t.status))
+  useEffect(() => {
+    if (!hasActiveTasks) return
+    const interval = setInterval(fetchTasks, 2000)
+    return () => clearInterval(interval)
+  }, [hasActiveTasks, fetchTasks])
 
   const statusLabel: Record<string, string> = {
     pending: '排队中',
