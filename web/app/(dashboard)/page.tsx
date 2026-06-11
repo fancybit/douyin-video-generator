@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [showModal, setShowModal] = useState(false)
   const [title, setTitle] = useState('')
   const [script, setScript] = useState('')
+  const [keywords, setKeywords] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
@@ -51,6 +52,7 @@ export default function DashboardPage() {
     const { error } = await supabase.from('tasks').insert({
       title: title.trim(),
       script: script.trim(),
+      keywords: keywords.trim() || null,
       status: 'pending',
       progress: 0,
       user_id: user?.id,
@@ -65,6 +67,7 @@ export default function DashboardPage() {
     setShowModal(false)
     setTitle('')
     setScript('')
+    setKeywords('')
     setSubmitting(false)
     fetchTasks()
     triggerProcess()
@@ -211,6 +214,17 @@ export default function DashboardPage() {
                   onChange={(e) => setScript(e.target.value)}
                   placeholder="描述你想生成的视频内容..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="keywords" className="block text-sm font-medium text-gray-700 mb-1">搜索关键词</label>
+                <input
+                  id="keywords"
+                  type="text"
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder="用于搜索素材的关键词，如：科技、自然风光、城市夜景"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 />
               </div>
               {submitError && (

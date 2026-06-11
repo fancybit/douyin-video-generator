@@ -2,7 +2,10 @@ import json
 import os
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("DASHSCOPE_API_KEY"),
+    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+)
 
 SYSTEM_PROMPT = """你是一个知识解说类短视频文案写手。根据用户提供的主题和关键词，生成一段适合抖音知识解说视频的文案。
 
@@ -27,7 +30,7 @@ async def generate_script(title: str, keywords: list) -> str:
     user_prompt = f"主题：{title}\n关键词：{keyword_str}\n请生成知识解说视频文案。"
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="qwen-plus",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt}
